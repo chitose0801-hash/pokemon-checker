@@ -1,0 +1,27 @@
+name: Pokemon Check Bot
+
+on:
+  schedule:
+    - cron: '0 */3 * * *' # 3時間おきに実行
+  workflow_dispatch: # ボタンを押して手動で動かせるようにする設定
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run script
+        env:
+          LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
+        run: python main.py
