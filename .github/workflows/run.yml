@@ -3,7 +3,7 @@ name: Pokemon Check Bot
 on:
   schedule:
     - cron: '0 */3 * * *' # 3時間おきに実行
-  workflow_dispatch: # ボタンを押して手動で動かせるようにする設定
+  workfldispatch: # ボタンを押して手動で動かせるようにする設定
 
 jobs:
   build:
