@@ -1,25 +1,30 @@
 name: Pokemon Check Bot
 
 on:
+  push:
+    branches: [ main ]
   schedule:
-    - cron: '0 */3 * * *' # 3時間おきに実行
-  workfldispatch: # ボタンを押して手動で動かせるようにする設定
+    # 6時間おき（日本時間の0時, 6時, 12時, 18時付近）に実行
+    # GitHubの時間はUTCなので、日本時間から9時間引いた設定にします
+    - cron: '0 15,21,3,9 * * *'
+  workflow_dispatch: # 手動でボタンを押して実行できるようにする設定
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.10'
 
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4
 
       - name: Run script
         env:
