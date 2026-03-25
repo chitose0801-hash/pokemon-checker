@@ -4,9 +4,8 @@ on:
   push:
     branches: [ main ]
   schedule:
-    # 日本時間の3時間おき（0,3,6,9,12,15,18,21時）
-    # UTC（世界標準時）に変換して設定
-    - cron: '0 15,18,21,0,3,6,9,12 * * *'
+    # 8時間おき（日本時間の 0時, 8時, 16時 ごろ）
+    - cron: '0 15,23,7 * * *'
   workflow_dispatch:
 
 jobs:
@@ -15,17 +14,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install requests beautifulsoup4 lxml
-
+        run: pip install requests beautifulsoup4 lxml
       - name: Run script
         env:
           LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
