@@ -13,48 +13,42 @@ def send_line(message):
     url = "https://api.line.me/v2/bot/message/broadcast"
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {LINE_TOKEN}"}
     data = {"messages": [{"type": "text", "text": message}]}
-    requests.post(url, headers=headers, json=data)
+    res = requests.post(url, headers=headers, json=data)
+    print(f"LINE送信ステータス: {res.status_code}")
 
 def parse_miyagi_info(title, content):
-    """宮城県の情報を探し、指定の箇条書きフォーマットに整える"""
-    # 商品名はタイトルから取得
-    product_name = title.replace("【予約情報】", "").strip()
-    
-    # 宮城県に関連する行を抽出
-    # ブログの構造上、都道府県ごとにまとまっていることが多いため「宮城県」前後のテキストを探す
-    lines = content.split('\n')
-    miyagi_data = []
-    is_miyagi_section = False
-    
-    for line in lines:
-        if "宮城県" in line:
-            miyagi_data.append(line)
-    
-    if not miyagi_data:
-        return None # 宮城県の情報がなければ送信しない
-
-    # メッセージ構築
     now = datetime.now().strftime("%m/%d %H:%M")
-    msg = f"📍 宮城県 予約情報（{now}確認）\n"
+    # タイトルから【】などを除去して商品名にする
+    product_name = re.sub(r'【.*?】', '', title).strip()
+
+    # 改行コードを統一して1行ずつチェック
+    clean_content = content.replace('<br />', '\n').replace('<br>', '\n')
+    lines = clean_content.split('\n')
+    
+    # 「宮城県」または「仙台」が含まれる行を抽出
+    miyagi_lines = [l for l in lines if "宮城県" in l or "仙台" in l]
+    
+    # ★宮城県の情報がない場合のメッセージ
+    if not miyagi_lines:
+        return f"📢 {now} 確認\n宮城県の予約情報はありません。\n\n最新の記事:\n{title}"
+
+    # 宮城県の情報がある場合のメッセージ構築
+    msg = f"📍 宮城県 予約情報（{now}）\n"
     msg += f"━━━━━━━━━━━━━━━\n"
     
-    for info in miyagi_data:
-        # 店舗名を抽出（例：ホビーステーション仙台店）
+    for info in miyagi_lines:
+        # 店舗名の抽出
         shop = "不明"
-        shop_match = re.search(r"([^ 　]+(?:店|ショップ|センター))", info)
-        if shop_match: shop = shop_match.group(1)
+        shop_match = re.search(r"(?:宮城県|仙台市)[：:\s]*(.*?)(?:\s|\d|/)", info)
+        if shop_match: shop = shop_match.group(1).strip()
         
-        # 受付期間
-        start_date = "不明"
-        end_date = "不明"
-        date_matches = re.findall(r"(\d{1,2}/\d{1,2})", info)
-        if len(date_matches) >= 2:
-            start_date, end_date = date_matches[0], date_matches[1]
-        elif len(date_matches) == 1:
-            end_date = date_matches[0]
+        # 受付期間（日付 0/0 を探す）
+        dates = re.findall(r"(\d{1,2}/\d{1,2})", info)
+        start_date = dates[0] if len(dates) >= 1 else "不明"
+        end_date = dates[1] if len(dates) >= 2 else "不明"
             
         # 応募方法
-        method = "店頭" if "店頭" in info else "Web" if "Web" in info or "アプリ" in info else "不明"
+        method = "店頭" if "店頭" in info else "Web/アプリ" if any(k in info for k in ["Web", "アプリ", "抽選"]) else "不明"
 
         msg += f"■{product_name}\n"
         msg += f"　店舗名：{shop}\n"
@@ -71,20 +65,20 @@ def check_blog():
         soup = BeautifulSoup(response.content, "xml")
         items = soup.find_all("item")
         
-        if not items: return
+        if not items:
+            print("記事が取得できませんでした")
+            return
 
-        # 最新3件の記事をチェック（宮城県の情報が含まれる記事を探すため）
-        for item in items[:3]:
-            title = item.title.text
-            content = item.description.text
-            link = item.link.text
-            
-            message = parse_miyagi_info(title, content)
-            if message:
-                message += f"🔗 詳細：{link}"
-                send_line(message)
-                print(f"宮城県の情報を送信しました: {title}")
-                break # 1つ見つかったら終了
+        # 最新の記事1件を対象にする
+        item = items[0]
+        title = item.title.text
+        content = item.description.text if item.description else ""
+        link = item.link.text
+        
+        message = parse_miyagi_info(title, content)
+        if message:
+            message += f"🔗 詳細：{link}"
+            send_line(message)
 
     except Exception as e:
         print(f"Error: {e}")
